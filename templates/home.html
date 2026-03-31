@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevBook | Conectando Ideias</title>
+    <link rel="stylesheet" href="../static/main.css">
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <div class="logo">DevBook</div>
+            <div class="nav-auth">
+                <a href="/login" class="btn-login">Login</a>
+                <a href="/register" class="btn-primary">Cadastrar</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="container">
+                <h1>Olá {{current_user.name}}</h1>
+                <p>Nam sed auctor felis. Nullam vulputate et turpis id elementum.</p>
+            </div>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
