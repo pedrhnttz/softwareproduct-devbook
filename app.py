@@ -6,7 +6,7 @@ from db import db
 app = Flask(__name__)
 app.secret_key = 'secret_key'
 lm = LoginManager(app)
-lm.login_view = 'login'
+lm.login_view = 'landing'
 app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///database.db"
 db.init_app(app)
 
@@ -19,6 +19,10 @@ def user_loader(id):
 @login_required
 def home():
     return render_template('home.html')
+
+@app.route('/landing')
+def landing():
+    return render_template('landing.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -57,6 +61,24 @@ def register():
 def logout():
     logout_user()
     return redirect(url_for('home'))
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    if request.method == 'GET':
+        return render_template('profile.html', user=current_user)
+    elif request.method == 'POST':
+        name = request.form['nameForm'].strip() or current_user.name
+        mail = request.form['mailForm'].strip() or current_user.mail
+        password = request.form['passwordForm'].strip() or current_user.password
+
+        current_user.name = name
+        current_user.mail = mail
+        current_user.password = password
+
+        db.session.commit()
+
+        return redirect(url_for('home'))
 
 if __name__ == '__main__':
     with app.app_context():

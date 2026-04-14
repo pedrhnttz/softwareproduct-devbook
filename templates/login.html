@@ -1,15 +1,31 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Login - DevBook</title>
+    <link rel="stylesheet" href="../static/main.css">
+    <link rel="stylesheet" href="../static/form.css">
 </head>
 <body>
-    <form action="" method="post">
-        Email: <input type="text" name="mailForm" id=""><br>
-        Senha: <input type="password" name="passwordForm" id=""><br>
-        <input type="submit" value="Entrar"><a href="/register">Cadastrar-se</a>
-    </form>
+    <div class="auth-container">
+        <form id="form-cadastro" class="auth-form" action="" method="post">
+            <h2>Login</h2>
+
+            <div class="input-group">
+                <label for="email">E-mail</label>
+                <input type="email" name="mailForm" required placeholder="email@exemplo.com">
+            </div>
+
+            <div class="input-group">
+                <label for="password">Senha</label>
+                <input type="password" name="passwordForm" required placeholder="No mínimo 6 caracteres">
+            </div>
+
+            <button type="submit" class="btn-primary full-width">Entrar</button>
+            <p class="auth-footer">Não tem conta? <a href="/register">Cadastrar-se</a></p>
+        </form>
+    </div>
+
 </body>
 </html>

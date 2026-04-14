@@ -36,3 +36,64 @@
     width: 100%;
     font-size: 1rem;
 }
+
+.profile-container {
+    display: flex;
+    justify-content: center;
+    min-height: 80vh;
+}
+
+.profile-form {
+    padding: 40px;
+    width: 75vw;
+    margin-top: 48px;
+}
+
+.profile-group {
+    margin-bottom: 24px;
+}
+
+.profile-form h2 {
+    margin-bottom: 24px;
+}
+
+.profile-group button {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 18px;
+}
+
+.profile-group label {
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.profile-edit {
+    display: none;
+    margin-top: 10px;
+    outline: none;
+    width: 50vh;
+    border: none;
+    border-bottom: 1px solid var(--dark-color);
+    background-color: var(--light-bg);
+    font-size: 16px;
+}
+
+.profile-text {
+    margin: 10px 0;
+    font-size: 16px;
+    color: var(--text-color);
+    display: block;
+}
+
+.profile-submit {
+    font-size: 1rem;
+    cursor: pointer;
+    color: var(--light-bg);
+    background-color: var(--primary-color);
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-right: 12px;
+}
