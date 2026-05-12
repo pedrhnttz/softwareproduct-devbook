@@ -97,3 +97,44 @@
     border-radius: 4px;
     margin-right: 12px;
 }
+
+.label-optional {
+    font-weight: 400;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.input-file {
+    width: 100%;
+    padding: 10px 0;
+    font-size: 0.95rem;
+}
+
+.input-hint {
+    margin-top: 6px;
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.profile-group-avatar .profile-avatar-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.profile-avatar-preview {
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #e2e8f0;
+    background: #f1f5f9;
+}
+
+.profile-avatar-hint {
+    margin-top: 4px;
+}
+
+.profile-file.profile-edit {
+    max-width: 100%;
+}

@@ -3,69 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DevBook | Conectando Ideias</title>
-    <link rel="stylesheet" href="../static/main.css">
-    <link rel="stylesheet" href="../static/form.css">
+    <title>Perfil | DevBook</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='form.css') }}">
 </head>
 <body>
     <header>
         <nav class="container">
-            <a href="/">
+            <a href="{{ url_for('home') }}" class="logo-link">
                 <div class="logo">DevBook</div>
             </a>
             <div class="nav-auth">
-                <a href="" class="btn-profile">{{current_user.name}}</a>
+                <a href="{{ url_for('profile') }}" class="btn-profile nav-user">
+                    <img class="nav-avatar" src="{{ current_user | user_avatar_url }}" width="32" height="32" alt="">
+                    <span>{{ current_user.name }}</span>
+                </a>
             </div>
         </nav>
     </header>
 
     <main>
         <section class="profile-container">
-            <form id="form-profile" class="profile-form" action="" method="post">
-                <h2>Meus Dados</h2>
+            <form
+                id="form-profile"
+                class="profile-form"
+                action="{{ url_for('profile') }}"
+                method="post"
+                enctype="multipart/form-data"
+            >
+                <h2>Meus dados</h2>
 
-                <div class="profile-group">
-                    <label for="name">Nome:</label>
-                    <button type="button" onclick="editProfile('name')">✏️</button>
-                    <p id="text-name" class="profile-text">{{current_user.name}}</p>
-                    <input id="edit-name" class="profile-edit" type="text" name="nameForm" placeholder={{current_user.name}}>
+                <div class="profile-group profile-group-avatar">
+                    <label>Foto de perfil</label>
+                    <button type="button" onclick="editProfile('avatar')" aria-label="Editar foto">✏️</button>
+                    <div class="profile-avatar-row">
+                        <img
+                            id="text-avatar"
+                            class="profile-avatar-preview"
+                            src="{{ current_user | user_avatar_url }}"
+                            width="96"
+                            height="96"
+                            alt=""
+                        >
+                        <input
+                            id="edit-avatar"
+                            class="profile-edit profile-file"
+                            type="file"
+                            name="avatarForm"
+                            accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                        >
+                    </div>
+                    <p class="input-hint profile-avatar-hint">PNG, JPG, GIF ou WebP. Máximo 2 MB. Deixe em branco para manter a foto atual.</p>
                 </div>
 
                 <div class="profile-group">
-                    <label for="mail">Email:</label>
-                    <button type="button" onclick="editProfile('mail')">✏️</button>
-                    <p id="text-mail" class="profile-text">{{current_user.mail}}</p>
-                    <input id="edit-mail" class="profile-edit" type="text" name="mailForm" placeholder={{current_user.mail}}>
+                    <label for="name">Nome</label>
+                    <button type="button" onclick="editProfile('name')" aria-label="Editar nome">✏️</button>
+                    <p id="text-name" class="profile-text">{{ current_user.name }}</p>
+                    <input id="edit-name" class="profile-edit" type="text" name="nameForm" value="{{ current_user.name }}" placeholder="{{ current_user.name }}">
                 </div>
 
                 <div class="profile-group">
-                    <label for="password">Senha:</label>
-                    <button type="button" onclick="editProfile('password')">✏️</button>
-                    <p id="text-password" class="profile-text">{{current_user.password}}</p>
-                    <input id="edit-password" class="profile-edit" type="text" name="passwordForm" placeholder={{current_user.password}}>
+                    <label for="mail">E-mail</label>
+                    <button type="button" onclick="editProfile('mail')" aria-label="Editar e-mail">✏️</button>
+                    <p id="text-mail" class="profile-text">{{ current_user.mail }}</p>
+                    <input id="edit-mail" class="profile-edit" type="email" name="mailForm" value="{{ current_user.mail }}" placeholder="{{ current_user.mail }}">
                 </div>
 
-                <button type="submit" class="profile-submit">Atualizar Dados</button>
-                <a href="/logout">Logout</a>
+                <div class="profile-group">
+                    <label for="password">Senha</label>
+                    <button type="button" onclick="editProfile('password')" aria-label="Editar senha">✏️</button>
+                    <p id="text-password" class="profile-text">••••••••</p>
+                    <input id="edit-password" class="profile-edit" type="password" name="passwordForm" placeholder="Nova senha (opcional)">
+                </div>
+
+                <button type="submit" class="profile-submit">Atualizar dados</button>
+                <a href="{{ url_for('logout') }}">Sair</a>
             </form>
         </section>
     </main>
 
     <script>
-        function editProfile(id){
-        let edit = document.getElementById("edit-" + id);
-        let text = document.getElementById("text-" + id)
-
-        edit.style.display =
-            edit.style.display === "block"
-            ? "none"
-            : "block";
-        text.style.display =
-            text.style.display === "none"
-            ? "block"
-            : "none";
-        };
+        function editProfile(id) {
+            if (id === 'avatar') {
+                const edit = document.getElementById('edit-avatar');
+                edit.style.display = edit.style.display === 'block' ? 'none' : 'block';
+                return;
+            }
+            const edit = document.getElementById('edit-' + id);
+            const text = document.getElementById('text-' + id);
+            edit.style.display = edit.style.display === 'block' ? 'none' : 'block';
+            text.style.display = text.style.display === 'none' ? 'block' : 'none';
+        }
     </script>
-
 </body>
 </html>

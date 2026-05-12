@@ -4,33 +4,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cadastro - DevBook</title>
-    <link rel="stylesheet" href="../static/main.css">
-    <link rel="stylesheet" href="../static/form.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='form.css') }}">
 </head>
 <body>
     <div class="auth-container">
-        <form id="form-cadastro" class="auth-form" action="" method="post">
+        <form
+            id="form-cadastro"
+            class="auth-form"
+            action="{{ url_for('register') }}"
+            method="post"
+            enctype="multipart/form-data"
+        >
             <h2>Crie sua conta</h2>
-            
+
             <div class="input-group">
-                <label for="name">Nome Completo</label>
-                <input type="text" name="nameForm" required placeholder="Ex: João Silva">
+                <label for="name">Nome completo</label>
+                <input type="text" name="nameForm" id="name" required placeholder="Ex: João Silva">
             </div>
 
             <div class="input-group">
                 <label for="email">E-mail</label>
-                <input type="email" name="mailForm" required placeholder="email@exemplo.com">
+                <input type="email" name="mailForm" id="email" required placeholder="email@exemplo.com">
             </div>
 
             <div class="input-group">
                 <label for="password">Senha</label>
-                <input type="password" name="passwordForm" required placeholder="No mínimo 6 caracteres">
+                <input type="password" name="passwordForm" id="password" required placeholder="No mínimo 6 caracteres">
             </div>
 
-            <button type="submit" class="btn-primary full-width">Finalizar Cadastro</button>
-            <p class="auth-footer">Já tem conta? <a href="/login">Logar</a></p>
+            <div class="input-group">
+                <label for="avatarForm">Foto de perfil <span class="label-optional">(opcional)</span></label>
+                <input
+                    type="file"
+                    name="avatarForm"
+                    id="avatarForm"
+                    class="input-file"
+                    accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                >
+                <p class="input-hint">PNG, JPG, GIF ou WebP. Máximo 2 MB.</p>
+            </div>
+
+            <button type="submit" class="btn-primary full-width">Finalizar cadastro</button>
+            <p class="auth-footer">Já tem conta? <a href="{{ url_for('login') }}">Entrar</a></p>
         </form>
     </div>
-
 </body>
 </html>

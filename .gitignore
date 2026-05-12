@@ -1,3 +1,5 @@
 .venv
 instance
 __pycache__
+static/uploads/avatars/*
+!static/uploads/avatars/.gitkeep

@@ -4,27 +4,85 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DevBook | Conectando Ideias</title>
-    <link rel="stylesheet" href="../static/main.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
 </head>
 <body>
     <header>
         <nav class="container">
-            <div class="logo">DevBook</div>
+            <a href="{{ url_for('home') }}" class="logo-link">
+                <div class="logo">DevBook</div>
+            </a>
             <div class="nav-auth">
-                <a href="/profile" class="btn-profile">{{current_user.name}}</a>
+                <a href="{{ url_for('profile') }}" class="btn-profile nav-user">
+                    <img class="nav-avatar" src="{{ current_user | user_avatar_url }}" width="32" height="32" alt="">
+                    <span>{{ current_user.name }}</span>
+                </a>
             </div>
         </nav>
     </header>
 
     <main>
-        <section class="hero">
+        <section class="hero hero-compact">
             <div class="container">
-                <h1>Olá {{current_user.name}}</h1>
-                <p>Nam sed auctor felis. Nullam vulputate et turpis id elementum.</p>
+                <h1>Olá, {{ current_user.name }}</h1>
+                <p class="hero-sub">Compartilhe uma ideia e veja o que a comunidade está publicando.</p>
+            </div>
+        </section>
+
+        <section class="feed-section container">
+            <article class="composer card">
+                <h2>Nova publicação</h2>
+                <form class="composer-form" method="post" action="{{ url_for('home') }}">
+                    <label for="body" class="sr-only">Conteúdo da publicação</label>
+                    <textarea
+                        id="body"
+                        name="body"
+                        rows="4"
+                        maxlength="2000"
+                        required
+                        placeholder="O que você quer compartilhar hoje?"
+                    ></textarea>
+                    <div class="composer-actions">
+                        <button type="submit" class="btn-primary">Publicar</button>
+                    </div>
+                </form>
+            </article>
+
+            <div class="feed-list">
+                <h2 class="feed-title">Feed da comunidade</h2>
+                {% if posts %}
+                    {% for post in posts %}
+                        <article class="post card">
+                            <div class="post-layout">
+                                <img
+                                    class="post-avatar"
+                                    src="{{ post.author | user_avatar_url }}"
+                                    width="48"
+                                    height="48"
+                                    alt=""
+                                >
+                                <div class="post-main">
+                                    <header class="post-header">
+                                        <span class="post-author">{{ post.author.name }}</span>
+                                        <div class="post-meta">
+                                            <time class="post-date" datetime="{{ post.created_at.isoformat() }}">
+                                                {{ post.created_at.strftime('%d/%m/%Y %H:%M') }}
+                                            </time>
+                                            {% if post.author_id == current_user.id %}
+                                                <a class="post-edit-link" href="{{ url_for('edit_post', post_id=post.id) }}">Editar</a>
+                                            {% endif %}
+                                        </div>
+                                    </header>
+                                    <p class="post-body">{{ post.body }}</p>
+                                </div>
+                            </div>
+                        </article>
+                    {% endfor %}
+                {% else %}
+                    <p class="feed-empty">Ainda não há publicações. Seja o primeiro a postar.</p>
+                {% endif %}
             </div>
         </section>
     </main>
-
-    <script src="script.js"></script>
 </body>
 </html>
