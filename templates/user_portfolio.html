@@ -32,9 +32,22 @@
                     alt=""
                 >
                 <div class="portfolio-info">
-                    <h1 class="portfolio-name">{{ portfolio_user.name }}</h1>
+                    <div class="portfolio-name-row">
+                        <h1 class="portfolio-name">{{ portfolio_user.name }}</h1>
+                        {% if portfolio_user.id != current_user.id %}
+                            <form class="follow-form" method="post" action="{{ url_for('toggle_follow', user_id=portfolio_user.id) }}">
+                                {% if current_user.is_following(portfolio_user) %}
+                                    <button type="submit" class="btn-secondary follow-btn is-following">Deixar de seguir</button>
+                                {% else %}
+                                    <button type="submit" class="btn-primary follow-btn">Seguir</button>
+                                {% endif %}
+                            </form>
+                        {% endif %}
+                    </div>
                     <p class="portfolio-stats">
                         {{ posts | length }} publicaç{{ 'ão' if posts | length == 1 else 'ões' }}
+                        · <strong>{{ portfolio_user.followers_count }}</strong> seguidor{{ '' if portfolio_user.followers_count == 1 else 'es' }}
+                        · <strong>{{ portfolio_user.following_count }}</strong> seguindo
                     </p>
                     <a href="{{ url_for('home') }}" class="btn-secondary portfolio-back">← Voltar ao feed</a>
                 </div>

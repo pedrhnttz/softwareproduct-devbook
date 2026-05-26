@@ -2,7 +2,7 @@ import io
 
 from avatars import is_valid_stored_avatar_filename
 from db import db
-from models import Post, User
+from models import Comment, Post, User
 
 MINI_PNG = (
     b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01'
@@ -440,6 +440,194 @@ def test_share_renders_in_feed_with_original_author_label(app, client):
     assert 'Partilhou uma publicação de' in body
     assert 'Yara' in body
     assert 'Texto original' in body
+
+
+def test_user_can_comment_on_post(app, client):
+    _register(client, 'Anna', 'anna@example.com')
+    client.post('/', data={'body': 'Post para comentar'}, follow_redirects=True)
+
+    with app.app_context():
+        post_id = Post.query.first().id
+
+    other = app.test_client()
+    _register(other, 'Bruno', 'bruno@example.com')
+    other.post(
+        f'/post/{post_id}/comment',
+        data={'body': 'Excelente publicação!'},
+        follow_redirects=False,
+    )
+
+    with app.app_context():
+        post = db.session.get(Post, post_id)
+        assert post.comment_count == 1
+        comment = post.comments[0]
+        assert comment.body == 'Excelente publicação!'
+        assert comment.author.name == 'Bruno'
+
+
+def test_empty_comment_is_not_persisted(app, client):
+    _register(client, 'Cris', 'cris@example.com')
+    client.post('/', data={'body': 'Post da Cris'}, follow_redirects=True)
+
+    with app.app_context():
+        post_id = Post.query.first().id
+
+    client.post(f'/post/{post_id}/comment', data={'body': '   '}, follow_redirects=False)
+
+    with app.app_context():
+        assert Comment.query.count() == 0
+        assert db.session.get(Post, post_id).comment_count == 0
+
+
+def test_comment_count_matches_multiple_comments(app, client):
+    _register(client, 'Dora', 'dora@example.com')
+    client.post('/', data={'body': 'Várias respostas'}, follow_redirects=True)
+
+    with app.app_context():
+        post_id = Post.query.first().id
+
+    other = app.test_client()
+    _register(other, 'Eli', 'eli@example.com')
+    other.post(f'/post/{post_id}/comment', data={'body': 'Primeiro'}, follow_redirects=False)
+    other.post(f'/post/{post_id}/comment', data={'body': 'Segundo'}, follow_redirects=False)
+    client.post(f'/post/{post_id}/comment', data={'body': 'Terceiro'}, follow_redirects=False)
+
+    with app.app_context():
+        post = db.session.get(Post, post_id)
+        assert post.comment_count == 3
+
+    body = client.get('/').data.decode('utf-8')
+    assert 'Primeiro' in body
+    assert 'Segundo' in body
+    assert 'Terceiro' in body
+
+
+def test_comment_on_unknown_post_returns_404(client):
+    _register(client, 'Fabio', 'fabio@example.com')
+    assert client.post('/post/999999/comment', data={'body': 'x'}).status_code == 404
+
+
+def test_comment_requires_login(client):
+    response = client.post('/post/1/comment', data={'body': 'x'}, follow_redirects=False)
+    assert response.status_code == 302
+    assert '/landing' in response.location
+
+
+def test_follow_and_unfollow_toggle(app, client):
+    _register(client, 'Gina', 'gina@example.com')
+    other = app.test_client()
+    _register(other, 'Hugo', 'hugo@example.com')
+
+    with app.app_context():
+        gina = User.query.filter_by(mail='gina@example.com').first()
+        hugo = User.query.filter_by(mail='hugo@example.com').first()
+        gina_id, hugo_id = gina.id, hugo.id
+        assert not gina.is_following(hugo)
+
+    # First click: follow
+    client.post(f'/user/{hugo_id}/follow', follow_redirects=False)
+    with app.app_context():
+        gina = db.session.get(User, gina_id)
+        hugo = db.session.get(User, hugo_id)
+        assert gina.is_following(hugo)
+        assert hugo.followers_count == 1
+        assert gina.following_count == 1
+
+    # Second click: unfollow
+    client.post(f'/user/{hugo_id}/follow', follow_redirects=False)
+    with app.app_context():
+        gina = db.session.get(User, gina_id)
+        hugo = db.session.get(User, hugo_id)
+        assert not gina.is_following(hugo)
+        assert hugo.followers_count == 0
+        assert gina.following_count == 0
+
+
+def test_cannot_follow_self(app, client):
+    _register(client, 'Iris', 'iris@example.com')
+    with app.app_context():
+        iris_id = User.query.filter_by(mail='iris@example.com').first().id
+
+    response = client.post(f'/user/{iris_id}/follow', follow_redirects=False)
+    assert response.status_code == 400
+
+    with app.app_context():
+        iris = db.session.get(User, iris_id)
+        assert iris.followers_count == 0
+        assert iris.following_count == 0
+
+
+def test_follow_unknown_user_returns_404(client):
+    _register(client, 'Joao', 'joao@example.com')
+    assert client.post('/user/999999/follow').status_code == 404
+
+
+def test_follow_requires_login(client):
+    response = client.post('/user/1/follow', follow_redirects=False)
+    assert response.status_code == 302
+    assert '/landing' in response.location
+
+
+def test_following_feed_filters_posts(app, client):
+    _register(client, 'Karen', 'karen@example.com')
+
+    bob = app.test_client()
+    _register(bob, 'Bob', 'bob_feed@example.com')
+    bob.post('/', data={'body': 'Publicação do Bob'}, follow_redirects=True)
+
+    carol = app.test_client()
+    _register(carol, 'Carol', 'carol_feed@example.com')
+    carol.post('/', data={'body': 'Publicação da Carol'}, follow_redirects=True)
+
+    with app.app_context():
+        bob_id = User.query.filter_by(mail='bob_feed@example.com').first().id
+
+    # Karen follows only Bob
+    client.post(f'/user/{bob_id}/follow', follow_redirects=False)
+
+    # Global feed sees both posts
+    global_body = client.get('/').data.decode('utf-8')
+    assert 'Publicação do Bob' in global_body
+    assert 'Publicação da Carol' in global_body
+
+    # Following feed sees only Bob's post
+    following_body = client.get('/?feed=following').data.decode('utf-8')
+    assert 'Publicação do Bob' in following_body
+    assert 'Publicação da Carol' not in following_body
+
+
+def test_following_feed_empty_when_following_nobody(app, client):
+    _register(client, 'Lara', 'lara@example.com')
+
+    other = app.test_client()
+    _register(other, 'Mauro', 'mauro@example.com')
+    other.post('/', data={'body': 'Texto do Mauro'}, follow_redirects=True)
+
+    body = client.get('/?feed=following').data.decode('utf-8')
+    assert 'Texto do Mauro' not in body
+    assert 'ainda não segue ninguém' in body
+
+
+def test_portfolio_shows_follow_button_for_other_user(app, client):
+    _register(client, 'Nora', 'nora@example.com')
+    other = app.test_client()
+    _register(other, 'Otto', 'otto@example.com')
+
+    with app.app_context():
+        otto_id = User.query.filter_by(mail='otto@example.com').first().id
+
+    page = client.get(f'/user/{otto_id}').data.decode('utf-8')
+    assert 'Seguir' in page
+    assert f'/user/{otto_id}/follow' in page
+
+
+def test_portfolio_hides_follow_button_for_own_profile(app, client):
+    _register(client, 'Paula', 'paula@example.com')
+    with app.app_context():
+        paula_id = User.query.filter_by(mail='paula@example.com').first().id
+
+    page = client.get(f'/user/{paula_id}').data.decode('utf-8')
+    assert f'/user/{paula_id}/follow' not in page
 
 
 def test_malicious_avatar_path_returns_404(client):

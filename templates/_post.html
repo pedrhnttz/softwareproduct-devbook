@@ -55,6 +55,12 @@
                     </button>
                 </form>
 
+                <span class="action-btn comment-indicator" aria-label="Comentários">
+                    <span class="action-icon">💬</span>
+                    <span class="action-label">Comentários</span>
+                    <span class="action-count">{{ post.comment_count }}</span>
+                </span>
+
                 <details class="share-details">
                     <summary class="action-btn share-btn">
                         <span class="action-icon">🔁</span>
@@ -73,6 +79,31 @@
                     </form>
                 </details>
             </div>
+
+            <section class="post-comments">
+                {% if post.comments %}
+                    <ul class="comment-list">
+                        {% for comment in post.comments %}
+                            <li class="comment-item">
+                                <a class="comment-author" href="{{ url_for('user_portfolio', user_id=comment.author.id) }}">{{ comment.author.name }}</a>
+                                <span class="comment-body">{{ comment.body }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                <form class="comment-form" method="post" action="{{ url_for('add_comment', post_id=post.id) }}">
+                    <label for="comment-body-{{ post.id }}" class="sr-only">Novo comentário</label>
+                    <input
+                        id="comment-body-{{ post.id }}"
+                        type="text"
+                        name="body"
+                        maxlength="500"
+                        placeholder="Novo comentário..."
+                        required
+                    >
+                    <button type="submit" class="btn-primary comment-submit">Comentar</button>
+                </form>
+            </section>
         </div>
     </div>
 </article>

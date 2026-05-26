@@ -556,3 +556,113 @@ a.post-author:hover {
 .portfolio-back {
     display: inline-block;
 }
+
+.portfolio-name-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.follow-form {
+    margin: 0;
+}
+
+.follow-btn {
+    padding: 6px 16px;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.follow-btn.is-following {
+    background: transparent;
+}
+
+.feed-tabs {
+    display: flex;
+    gap: 8px;
+    margin: 14px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.feed-tab {
+    padding: 10px 18px;
+    text-decoration: none;
+    color: #64748b;
+    border-bottom: 2px solid transparent;
+    font-weight: 500;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.feed-tab:hover {
+    color: var(--dark-color);
+}
+
+.feed-tab.is-active {
+    color: var(--primary-color, #4f46e5);
+    border-bottom-color: var(--primary-color, #4f46e5);
+}
+
+.post-comments {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.comment-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 10px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.comment-item {
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 0.92rem;
+    line-height: 1.4;
+}
+
+.comment-author {
+    font-weight: 600;
+    color: var(--dark-color);
+    text-decoration: none;
+    margin-right: 6px;
+}
+
+.comment-author:hover {
+    text-decoration: underline;
+}
+
+.comment-body {
+    color: #334155;
+    word-wrap: break-word;
+}
+
+.comment-form {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.comment-form input[type="text"] {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.92rem;
+}
+
+.comment-submit {
+    padding: 8px 14px;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.comment-indicator {
+    cursor: default;
+}

@@ -11,6 +11,13 @@ post_likes = db.Table(
 )
 
 
+followers = db.Table(
+    'followers',
+    db.Column('follower_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
+    db.Column('followed_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
+)
+
+
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
 
@@ -21,6 +28,40 @@ class User(UserMixin, db.Model):
     avatar_filename = db.Column(db.String(255), nullable=True)
 
     posts = db.relationship('Post', back_populates='author', lazy='dynamic', cascade='all, delete-orphan', foreign_keys='Post.author_id')
+
+    following = db.relationship(
+        'User',
+        secondary=followers,
+        primaryjoin=(followers.c.follower_id == id),
+        secondaryjoin=(followers.c.followed_id == id),
+        backref=db.backref('followers', lazy='dynamic'),
+        lazy='dynamic',
+    )
+
+    def is_following(self, other) -> bool:
+        if other is None:
+            return False
+        return self.following.filter(followers.c.followed_id == other.id).count() > 0
+
+    def follow(self, other) -> None:
+        if other is None or other.id == self.id:
+            return
+        if not self.is_following(other):
+            self.following.append(other)
+
+    def unfollow(self, other) -> None:
+        if other is None:
+            return
+        if self.is_following(other):
+            self.following.remove(other)
+
+    @property
+    def followers_count(self) -> int:
+        return self.followers.count()
+
+    @property
+    def following_count(self) -> int:
+        return self.following.count()
 
 
 class Post(db.Model):
@@ -44,6 +85,12 @@ class Post(db.Model):
         lazy='select',
         backref=db.backref('liked_posts', lazy='dynamic'),
     )
+    comments = db.relationship(
+        'Comment',
+        back_populates='post',
+        cascade='all, delete-orphan',
+        order_by='Comment.created_at.asc()',
+    )
 
     def is_liked_by(self, user) -> bool:
         if user is None or not getattr(user, 'is_authenticated', False):
@@ -53,3 +100,24 @@ class Post(db.Model):
     @property
     def like_count(self) -> int:
         return len(self.liked_by)
+
+    @property
+    def comment_count(self) -> int:
+        return len(self.comments)
+
+
+class Comment(db.Model):
+    __tablename__ = 'comments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    body = db.Column(db.Text, nullable=False)
+    created_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    author_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    post_id = db.Column(db.Integer, db.ForeignKey('posts.id'), nullable=False)
+
+    author = db.relationship('User', backref=db.backref('comments', lazy='dynamic'))
+    post = db.relationship('Post', back_populates='comments')

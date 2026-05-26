@@ -58,16 +58,34 @@
                     placeholder="Buscar por conteúdo ou autor..."
                     maxlength="100"
                 >
+                {% if feed_mode == 'following' %}
+                    <input type="hidden" name="feed" value="following">
+                {% endif %}
                 <button type="submit" class="btn-primary search-submit">Buscar</button>
                 {% if search_query %}
-                    <a href="{{ url_for('home') }}" class="search-clear">Limpar</a>
+                    <a href="{{ url_for('home', feed=feed_mode if feed_mode == 'following' else None) }}" class="search-clear">Limpar</a>
                 {% endif %}
             </form>
+
+            <nav class="feed-tabs" aria-label="Modo do feed">
+                <a
+                    href="{{ url_for('home') }}"
+                    class="feed-tab {% if feed_mode != 'following' %}is-active{% endif %}"
+                    {% if feed_mode != 'following' %}aria-current="page"{% endif %}
+                >Feed Global</a>
+                <a
+                    href="{{ url_for('home', feed='following') }}"
+                    class="feed-tab {% if feed_mode == 'following' %}is-active{% endif %}"
+                    {% if feed_mode == 'following' %}aria-current="page"{% endif %}
+                >Seguindo</a>
+            </nav>
 
             <div class="feed-list">
                 <h2 class="feed-title">
                     {% if search_query %}
                         Resultados para "{{ search_query }}"
+                    {% elif feed_mode == 'following' %}
+                        Publicações de quem você segue
                     {% else %}
                         Feed da comunidade
                     {% endif %}
@@ -79,6 +97,8 @@
                 {% else %}
                     {% if search_query %}
                         <p class="feed-empty">Nenhuma publicação encontrada para "{{ search_query }}".</p>
+                    {% elif feed_mode == 'following' %}
+                        <p class="feed-empty">Você ainda não segue ninguém — explore o <a href="{{ url_for('home') }}">Feed Global</a> para encontrar pessoas.</p>
                     {% else %}
                         <p class="feed-empty">Ainda não há publicações. Seja o primeiro a postar.</p>
                     {% endif %}

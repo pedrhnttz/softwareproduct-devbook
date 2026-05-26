@@ -7,7 +7,7 @@ from sqlalchemy.orm import joinedload
 
 from avatars import delete_avatar_file, is_valid_stored_avatar_filename, save_avatar_file
 from db import db
-from models import Post, User
+from models import Comment, Post, User
 
 lm = LoginManager()
 
@@ -59,6 +59,46 @@ def _ensure_sqlite_post_likes_table(app: Flask) -> None:
             'user_id INTEGER NOT NULL REFERENCES users(id), '
             'post_id INTEGER NOT NULL REFERENCES posts(id), '
             'PRIMARY KEY (user_id, post_id))'
+        ))
+        conn.commit()
+
+
+def _ensure_sqlite_followers_table(app: Flask) -> None:
+    uri = app.config.get('SQLALCHEMY_DATABASE_URI') or ''
+    if not uri.startswith('sqlite:'):
+        return
+    inspector = inspect(db.engine)
+    if not inspector.has_table('users'):
+        return
+    if inspector.has_table('followers'):
+        return
+    with db.engine.connect() as conn:
+        conn.execute(text(
+            'CREATE TABLE followers ('
+            'follower_id INTEGER NOT NULL REFERENCES users(id), '
+            'followed_id INTEGER NOT NULL REFERENCES users(id), '
+            'PRIMARY KEY (follower_id, followed_id))'
+        ))
+        conn.commit()
+
+
+def _ensure_sqlite_comments_table(app: Flask) -> None:
+    uri = app.config.get('SQLALCHEMY_DATABASE_URI') or ''
+    if not uri.startswith('sqlite:'):
+        return
+    inspector = inspect(db.engine)
+    if not inspector.has_table('users') or not inspector.has_table('posts'):
+        return
+    if inspector.has_table('comments'):
+        return
+    with db.engine.connect() as conn:
+        conn.execute(text(
+            'CREATE TABLE comments ('
+            'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+            'body TEXT NOT NULL, '
+            'created_at DATETIME NOT NULL, '
+            'author_id INTEGER NOT NULL REFERENCES users(id), '
+            'post_id INTEGER NOT NULL REFERENCES posts(id))'
         ))
         conn.commit()
 
@@ -116,17 +156,32 @@ def create_app(testing: bool = False) -> Flask:
             return redirect(url_for('home'))
 
         search_query = (request.args.get('q') or '').strip()
+        feed_mode = (request.args.get('feed') or '').strip().lower()
+        if feed_mode not in ('following', 'global'):
+            feed_mode = 'global'
+
         posts_query = (
             Post.query.options(joinedload(Post.author), joinedload(Post.parent).joinedload(Post.author))
             .join(User, Post.author_id == User.id)
         )
+        if feed_mode == 'following':
+            following_ids = [u.id for u in current_user.following.all()]
+            if following_ids:
+                posts_query = posts_query.filter(Post.author_id.in_(following_ids))
+            else:
+                posts_query = posts_query.filter(db.false())
         if search_query:
             like = f'%{search_query}%'
             posts_query = posts_query.filter(
                 or_(Post.body.ilike(like), User.name.ilike(like))
             )
         posts = posts_query.order_by(Post.created_at.desc()).all()
-        return render_template('home.html', posts=posts, search_query=search_query)
+        return render_template(
+            'home.html',
+            posts=posts,
+            search_query=search_query,
+            feed_mode=feed_mode,
+        )
 
     @app.route('/user/<int:user_id>')
     @login_required
@@ -188,6 +243,34 @@ def create_app(testing: bool = False) -> Flask:
         db.session.add(repost)
         db.session.commit()
         return redirect(request.referrer or url_for('home'))
+
+    @app.route('/post/<int:post_id>/comment', methods=['POST'])
+    @login_required
+    def add_comment(post_id):
+        post = db.session.get(Post, post_id)
+        if post is None:
+            abort(404)
+        body = (request.form.get('body') or '').strip()
+        if body:
+            comment = Comment(body=body, author_id=current_user.id, post_id=post.id)
+            db.session.add(comment)
+            db.session.commit()
+        return redirect(request.referrer or url_for('home'))
+
+    @app.route('/user/<int:user_id>/follow', methods=['POST'])
+    @login_required
+    def toggle_follow(user_id):
+        target = db.session.get(User, user_id)
+        if target is None:
+            abort(404)
+        if target.id == current_user.id:
+            abort(400)
+        if current_user.is_following(target):
+            current_user.unfollow(target)
+        else:
+            current_user.follow(target)
+        db.session.commit()
+        return redirect(request.referrer or url_for('user_portfolio', user_id=target.id))
 
     @app.route('/landing')
     def landing():
@@ -267,6 +350,8 @@ def create_app(testing: bool = False) -> Flask:
         _ensure_sqlite_user_avatar_column(app)
         _ensure_sqlite_post_parent_id_column(app)
         _ensure_sqlite_post_likes_table(app)
+        _ensure_sqlite_followers_table(app)
+        _ensure_sqlite_comments_table(app)
 
     return app
 
