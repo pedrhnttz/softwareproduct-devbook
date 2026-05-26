@@ -48,38 +48,40 @@
                 </form>
             </article>
 
+            <form class="search-bar" method="get" action="{{ url_for('home') }}">
+                <label for="search" class="sr-only">Buscar publicações</label>
+                <input
+                    id="search"
+                    type="text"
+                    name="q"
+                    value="{{ search_query or '' }}"
+                    placeholder="Buscar por conteúdo ou autor..."
+                    maxlength="100"
+                >
+                <button type="submit" class="btn-primary search-submit">Buscar</button>
+                {% if search_query %}
+                    <a href="{{ url_for('home') }}" class="search-clear">Limpar</a>
+                {% endif %}
+            </form>
+
             <div class="feed-list">
-                <h2 class="feed-title">Feed da comunidade</h2>
+                <h2 class="feed-title">
+                    {% if search_query %}
+                        Resultados para "{{ search_query }}"
+                    {% else %}
+                        Feed da comunidade
+                    {% endif %}
+                </h2>
                 {% if posts %}
                     {% for post in posts %}
-                        <article class="post card">
-                            <div class="post-layout">
-                                <img
-                                    class="post-avatar"
-                                    src="{{ post.author | user_avatar_url }}"
-                                    width="48"
-                                    height="48"
-                                    alt=""
-                                >
-                                <div class="post-main">
-                                    <header class="post-header">
-                                        <span class="post-author">{{ post.author.name }}</span>
-                                        <div class="post-meta">
-                                            <time class="post-date" datetime="{{ post.created_at.isoformat() }}">
-                                                {{ post.created_at.strftime('%d/%m/%Y %H:%M') }}
-                                            </time>
-                                            {% if post.author_id == current_user.id %}
-                                                <a class="post-edit-link" href="{{ url_for('edit_post', post_id=post.id) }}">Editar</a>
-                                            {% endif %}
-                                        </div>
-                                    </header>
-                                    <p class="post-body">{{ post.body }}</p>
-                                </div>
-                            </div>
-                        </article>
+                        {% include '_post.html' %}
                     {% endfor %}
                 {% else %}
-                    <p class="feed-empty">Ainda não há publicações. Seja o primeiro a postar.</p>
+                    {% if search_query %}
+                        <p class="feed-empty">Nenhuma publicação encontrada para "{{ search_query }}".</p>
+                    {% else %}
+                        <p class="feed-empty">Ainda não há publicações. Seja o primeiro a postar.</p>
+                    {% endif %}
                 {% endif %}
             </div>
         </section>

@@ -1,0 +1,78 @@
+<article class="post card">
+    <div class="post-layout">
+        <img
+            class="post-avatar"
+            src="{{ post.author | user_avatar_url }}"
+            width="48"
+            height="48"
+            alt=""
+        >
+        <div class="post-main">
+            <header class="post-header">
+                <a class="post-author" href="{{ url_for('user_portfolio', user_id=post.author.id) }}">{{ post.author.name }}</a>
+                <div class="post-meta">
+                    <time class="post-date" datetime="{{ post.created_at.isoformat() }}">
+                        {{ post.created_at.strftime('%d/%m/%Y %H:%M') }}
+                    </time>
+                    {% if post.author_id == current_user.id %}
+                        <a class="post-edit-link" href="{{ url_for('edit_post', post_id=post.id) }}">Editar</a>
+                    {% endif %}
+                </div>
+            </header>
+
+            {% if post.body %}
+                <p class="post-body">{{ post.body }}</p>
+            {% endif %}
+
+            {% if post.parent %}
+                <div class="repost-block">
+                    <p class="repost-label">
+                        🔁 Partilhou uma publicação de
+                        <a class="repost-author" href="{{ url_for('user_portfolio', user_id=post.parent.author.id) }}">{{ post.parent.author.name }}</a>
+                    </p>
+                    <div class="repost-content">
+                        <img
+                            class="repost-avatar"
+                            src="{{ post.parent.author | user_avatar_url }}"
+                            width="32"
+                            height="32"
+                            alt=""
+                        >
+                        <div class="repost-text">
+                            <span class="repost-original-author">{{ post.parent.author.name }}</span>
+                            <p class="repost-body">{{ post.parent.body }}</p>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="post-actions">
+                <form class="action-form" method="post" action="{{ url_for('toggle_like', post_id=post.id) }}">
+                    <button type="submit" class="action-btn like-btn {% if post.is_liked_by(current_user) %}is-liked{% endif %}" aria-label="Curtir">
+                        <span class="action-icon">❤️</span>
+                        <span class="action-label">Curtir</span>
+                        <span class="action-count">{{ post.like_count }}</span>
+                    </button>
+                </form>
+
+                <details class="share-details">
+                    <summary class="action-btn share-btn">
+                        <span class="action-icon">🔁</span>
+                        <span class="action-label">Partilhar</span>
+                    </summary>
+                    <form class="share-form" method="post" action="{{ url_for('share_post', post_id=post.id) }}">
+                        <label for="share-body-{{ post.id }}" class="sr-only">Comentário (opcional)</label>
+                        <textarea
+                            id="share-body-{{ post.id }}"
+                            name="body"
+                            rows="2"
+                            maxlength="2000"
+                            placeholder="Adicione um comentário (opcional)..."
+                        ></textarea>
+                        <button type="submit" class="btn-primary share-submit">Partilhar agora</button>
+                    </form>
+                </details>
+            </div>
+        </div>
+    </div>
+</article>

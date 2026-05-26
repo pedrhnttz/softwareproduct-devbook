@@ -247,6 +247,201 @@ def test_profile_updates_avatar(app, client):
         assert User.query.filter_by(mail='ann@example.com').first().avatar_filename
 
 
+def _register(client, name, mail='user@example.com', password='secret'):
+    return client.post(
+        '/register',
+        data={'nameForm': name, 'mailForm': mail, 'passwordForm': password},
+        follow_redirects=True,
+    )
+
+
+def test_search_filters_by_body_and_author(app, client):
+    _register(client, 'Ivy', 'ivy@example.com')
+    client.post('/', data={'body': 'Aprendendo Flask hoje'}, follow_redirects=True)
+    client.post('/', data={'body': 'Outro assunto qualquer'}, follow_redirects=True)
+
+    other = app.test_client()
+    _register(other, 'Jorge', 'jorge@example.com')
+    other.post('/', data={'body': 'Mensagem do Jorge sobre Django'}, follow_redirects=True)
+
+    # Filter by body content
+    page = client.get('/?q=Flask').data.decode('utf-8')
+    assert 'Aprendendo Flask hoje' in page
+    assert 'Outro assunto qualquer' not in page
+    assert 'Mensagem do Jorge sobre Django' not in page
+
+    # Filter by author name
+    page = client.get('/?q=Jorge').data.decode('utf-8')
+    assert 'Mensagem do Jorge sobre Django' in page
+    assert 'Aprendendo Flask hoje' not in page
+
+    # No matches
+    page = client.get('/?q=zzznotfound').data.decode('utf-8')
+    assert 'Nenhuma publicação encontrada' in page
+
+
+def test_user_portfolio_lists_only_that_users_posts(app, client):
+    _register(client, 'Kira', 'kira@example.com')
+    client.post('/', data={'body': 'Post da Kira'}, follow_redirects=True)
+
+    other = app.test_client()
+    _register(other, 'Leo', 'leo@example.com')
+    other.post('/', data={'body': 'Post do Leo'}, follow_redirects=True)
+
+    with app.app_context():
+        kira = User.query.filter_by(mail='kira@example.com').first()
+        kira_id = kira.id
+
+    page = client.get(f'/user/{kira_id}')
+    assert page.status_code == 200
+    body = page.data.decode('utf-8')
+    assert 'Kira' in body
+    assert 'Post da Kira' in body
+    assert 'Post do Leo' not in body
+
+
+def test_user_portfolio_unknown_user_returns_404(client):
+    _register(client, 'Mia', 'mia@example.com')
+    assert client.get('/user/999999').status_code == 404
+
+
+def test_home_renders_author_as_portfolio_link(app, client):
+    _register(client, 'Nina', 'nina@example.com')
+    client.post('/', data={'body': 'Olá mundo'}, follow_redirects=True)
+
+    with app.app_context():
+        nina_id = User.query.filter_by(mail='nina@example.com').first().id
+
+    body = client.get('/').data.decode('utf-8')
+    assert f'/user/{nina_id}' in body
+
+
+def test_like_toggles_persistence(app, client):
+    _register(client, 'Olivia', 'olivia@example.com')
+    client.post('/', data={'body': 'Curte aí'}, follow_redirects=True)
+
+    with app.app_context():
+        post_id = Post.query.first().id
+        assert db.session.get(Post, post_id).like_count == 0
+
+    other = app.test_client()
+    _register(other, 'Pedro', 'pedro@example.com')
+
+    # First click: like is added
+    other.post(f'/post/{post_id}/like', follow_redirects=False)
+    with app.app_context():
+        post = db.session.get(Post, post_id)
+        assert post.like_count == 1
+        liker = User.query.filter_by(mail='pedro@example.com').first()
+        assert liker in post.liked_by
+
+    # Second click: like is removed (toggle)
+    other.post(f'/post/{post_id}/like', follow_redirects=False)
+    with app.app_context():
+        post = db.session.get(Post, post_id)
+        assert post.like_count == 0
+
+
+def test_like_requires_login(client):
+    response = client.post('/post/1/like', follow_redirects=False)
+    assert response.status_code == 302
+    assert '/landing' in response.location
+
+
+def test_like_unknown_post_returns_404(client):
+    _register(client, 'Quentin', 'quentin@example.com')
+    assert client.post('/post/999999/like').status_code == 404
+
+
+def test_share_creates_repost_with_parent_id(app, client):
+    _register(client, 'Rita', 'rita@example.com')
+    client.post('/', data={'body': 'Publicação original da Rita'}, follow_redirects=True)
+
+    with app.app_context():
+        original = Post.query.first()
+        original_id = original.id
+        original_author_id = original.author_id
+
+    other = app.test_client()
+    _register(other, 'Sam', 'sam@example.com')
+
+    other.post(
+        f'/post/{original_id}/share',
+        data={'body': 'Vejam isso!'},
+        follow_redirects=False,
+    )
+
+    with app.app_context():
+        sam = User.query.filter_by(mail='sam@example.com').first()
+        repost = Post.query.filter_by(author_id=sam.id).first()
+        assert repost is not None
+        assert repost.parent_id == original_id
+        assert repost.body == 'Vejam isso!'
+        # Author of the parent is preserved
+        assert repost.parent.author_id == original_author_id
+
+
+def test_share_without_comment_is_allowed(app, client):
+    _register(client, 'Tina', 'tina@example.com')
+    client.post('/', data={'body': 'Texto da Tina'}, follow_redirects=True)
+
+    with app.app_context():
+        original_id = Post.query.first().id
+
+    other = app.test_client()
+    _register(other, 'Ugo', 'ugo@example.com')
+    other.post(f'/post/{original_id}/share', data={'body': '   '}, follow_redirects=False)
+
+    with app.app_context():
+        ugo = User.query.filter_by(mail='ugo@example.com').first()
+        repost = Post.query.filter_by(author_id=ugo.id).first()
+        assert repost is not None
+        assert repost.parent_id == original_id
+        assert repost.body == ''
+
+
+def test_share_of_share_flattens_to_original(app, client):
+    _register(client, 'Vera', 'vera@example.com')
+    client.post('/', data={'body': 'Origem'}, follow_redirects=True)
+
+    with app.app_context():
+        original_id = Post.query.first().id
+
+    sharer = app.test_client()
+    _register(sharer, 'Will', 'will@example.com')
+    sharer.post(f'/post/{original_id}/share', data={'body': 'Compartilhando'}, follow_redirects=False)
+
+    with app.app_context():
+        will = User.query.filter_by(mail='will@example.com').first()
+        repost_id = Post.query.filter_by(author_id=will.id).first().id
+
+    re_sharer = app.test_client()
+    _register(re_sharer, 'Xena', 'xena@example.com')
+    re_sharer.post(f'/post/{repost_id}/share', follow_redirects=False)
+
+    with app.app_context():
+        xena = User.query.filter_by(mail='xena@example.com').first()
+        re_repost = Post.query.filter_by(author_id=xena.id).first()
+        assert re_repost.parent_id == original_id
+
+
+def test_share_renders_in_feed_with_original_author_label(app, client):
+    _register(client, 'Yara', 'yara@example.com')
+    client.post('/', data={'body': 'Texto original'}, follow_redirects=True)
+
+    with app.app_context():
+        original_id = Post.query.first().id
+
+    other = app.test_client()
+    _register(other, 'Zac', 'zac@example.com')
+    other.post(f'/post/{original_id}/share', data={'body': 'Olha só'}, follow_redirects=False)
+
+    body = other.get('/').data.decode('utf-8')
+    assert 'Partilhou uma publicação de' in body
+    assert 'Yara' in body
+    assert 'Texto original' in body
+
+
 def test_malicious_avatar_path_returns_404(client):
     client.post(
         '/register',

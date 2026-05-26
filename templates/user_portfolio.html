@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ portfolio_user.name }} | DevBook</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <a href="{{ url_for('home') }}" class="logo-link">
+                <div class="logo">DevBook</div>
+            </a>
+            <div class="nav-auth">
+                <a href="{{ url_for('profile') }}" class="btn-profile nav-user">
+                    <img class="nav-avatar" src="{{ current_user | user_avatar_url }}" width="32" height="32" alt="">
+                    <span>{{ current_user.name }}</span>
+                </a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="portfolio-hero container">
+            <div class="portfolio-card card">
+                <img
+                    class="portfolio-avatar"
+                    src="{{ portfolio_user | user_avatar_url }}"
+                    width="120"
+                    height="120"
+                    alt=""
+                >
+                <div class="portfolio-info">
+                    <h1 class="portfolio-name">{{ portfolio_user.name }}</h1>
+                    <p class="portfolio-stats">
+                        {{ posts | length }} publicaç{{ 'ão' if posts | length == 1 else 'ões' }}
+                    </p>
+                    <a href="{{ url_for('home') }}" class="btn-secondary portfolio-back">← Voltar ao feed</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="feed-section container">
+            <div class="feed-list">
+                <h2 class="feed-title">Publicações de {{ portfolio_user.name }}</h2>
+                {% if posts %}
+                    {% for post in posts %}
+                        {% include '_post.html' %}
+                    {% endfor %}
+                {% else %}
+                    <p class="feed-empty">{{ portfolio_user.name }} ainda não publicou nada.</p>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+</body>
+</html>

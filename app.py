@@ -2,7 +2,7 @@ import os
 
 from flask import Flask, abort, render_template, request, redirect, url_for, send_from_directory
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
-from sqlalchemy import inspect, text
+from sqlalchemy import inspect, or_, text
 from sqlalchemy.orm import joinedload
 
 from avatars import delete_avatar_file, is_valid_stored_avatar_filename, save_avatar_file
@@ -24,6 +24,42 @@ def _ensure_sqlite_user_avatar_column(app: Flask) -> None:
         return
     with db.engine.connect() as conn:
         conn.execute(text('ALTER TABLE users ADD COLUMN avatar_filename VARCHAR(255)'))
+        conn.commit()
+
+
+def _ensure_sqlite_post_parent_id_column(app: Flask) -> None:
+    uri = app.config.get('SQLALCHEMY_DATABASE_URI') or ''
+    if not uri.startswith('sqlite:'):
+        return
+    inspector = inspect(db.engine)
+    if not inspector.has_table('posts'):
+        return
+    cols = {c['name'] for c in inspector.get_columns('posts')}
+    if 'parent_id' in cols:
+        return
+    with db.engine.connect() as conn:
+        conn.execute(text(
+            'ALTER TABLE posts ADD COLUMN parent_id INTEGER REFERENCES posts(id)'
+        ))
+        conn.commit()
+
+
+def _ensure_sqlite_post_likes_table(app: Flask) -> None:
+    uri = app.config.get('SQLALCHEMY_DATABASE_URI') or ''
+    if not uri.startswith('sqlite:'):
+        return
+    inspector = inspect(db.engine)
+    if not inspector.has_table('users') or not inspector.has_table('posts'):
+        return
+    if inspector.has_table('post_likes'):
+        return
+    with db.engine.connect() as conn:
+        conn.execute(text(
+            'CREATE TABLE post_likes ('
+            'user_id INTEGER NOT NULL REFERENCES users(id), '
+            'post_id INTEGER NOT NULL REFERENCES posts(id), '
+            'PRIMARY KEY (user_id, post_id))'
+        ))
         conn.commit()
 
 
@@ -79,12 +115,32 @@ def create_app(testing: bool = False) -> Flask:
                 db.session.commit()
             return redirect(url_for('home'))
 
+        search_query = (request.args.get('q') or '').strip()
+        posts_query = (
+            Post.query.options(joinedload(Post.author), joinedload(Post.parent).joinedload(Post.author))
+            .join(User, Post.author_id == User.id)
+        )
+        if search_query:
+            like = f'%{search_query}%'
+            posts_query = posts_query.filter(
+                or_(Post.body.ilike(like), User.name.ilike(like))
+            )
+        posts = posts_query.order_by(Post.created_at.desc()).all()
+        return render_template('home.html', posts=posts, search_query=search_query)
+
+    @app.route('/user/<int:user_id>')
+    @login_required
+    def user_portfolio(user_id):
+        user = db.session.get(User, user_id)
+        if user is None:
+            abort(404)
         posts = (
-            Post.query.options(joinedload(Post.author))
+            Post.query.options(joinedload(Post.author), joinedload(Post.parent).joinedload(Post.author))
+            .filter(Post.author_id == user.id)
             .order_by(Post.created_at.desc())
             .all()
         )
-        return render_template('home.html', posts=posts)
+        return render_template('user_portfolio.html', portfolio_user=user, posts=posts)
 
     @app.route('/post/<int:post_id>/edit', methods=['GET', 'POST'])
     @login_required
@@ -103,6 +159,35 @@ def create_app(testing: bool = False) -> Flask:
             return redirect(url_for('home'))
 
         return render_template('edit_post.html', post=post)
+
+    @app.route('/post/<int:post_id>/like', methods=['POST'])
+    @login_required
+    def toggle_like(post_id):
+        post = db.session.get(Post, post_id)
+        if post is None:
+            abort(404)
+        if current_user in post.liked_by:
+            post.liked_by.remove(current_user)
+        else:
+            post.liked_by.append(current_user)
+        db.session.commit()
+        return redirect(request.referrer or url_for('home'))
+
+    @app.route('/post/<int:post_id>/share', methods=['POST'])
+    @login_required
+    def share_post(post_id):
+        original = db.session.get(Post, post_id)
+        if original is None:
+            abort(404)
+
+        # If sharing an existing share, point to the underlying original.
+        target = original.parent if original.parent_id else original
+
+        comment = (request.form.get('body') or '').strip()
+        repost = Post(body=comment, author_id=current_user.id, parent_id=target.id)
+        db.session.add(repost)
+        db.session.commit()
+        return redirect(request.referrer or url_for('home'))
 
     @app.route('/landing')
     def landing():
@@ -180,6 +265,8 @@ def create_app(testing: bool = False) -> Flask:
 
     with app.app_context():
         _ensure_sqlite_user_avatar_column(app)
+        _ensure_sqlite_post_parent_id_column(app)
+        _ensure_sqlite_post_likes_table(app)
 
     return app
 
