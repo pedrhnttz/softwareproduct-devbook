@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversa com {{ other.name }} | DevBook</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+</head>
+<body>
+    {% include '_nav.html' %}
+
+    <main>
+        <section class="feed-section container chat-container">
+            <header class="chat-header card">
+                <a class="chat-back" href="{{ url_for('messages') }}" aria-label="Voltar">←</a>
+                <a class="chat-peer" href="{{ url_for('user_portfolio', user_id=other.id) }}">
+                    <img class="chat-avatar" src="{{ other | user_avatar_url }}" width="40" height="40" alt="">
+                    <span class="chat-name">{{ other.name }}</span>
+                </a>
+            </header>
+
+            <div class="chat-thread">
+                {% if thread %}
+                    {% for message in thread %}
+                        <div class="chat-bubble-row {% if message.sender_id == current_user.id %}is-mine{% else %}is-theirs{% endif %}">
+                            <div class="chat-bubble">
+                                <p class="chat-text">{{ message.body }}</p>
+                                <time class="chat-time" datetime="{{ message.created_at.isoformat() }}">
+                                    {{ message.created_at.strftime('%d/%m %H:%M') }}
+                                </time>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="feed-empty">Nenhuma mensagem ainda. Diga olá! 👋</p>
+                {% endif %}
+            </div>
+
+            <form class="chat-form card" method="post" action="{{ url_for('conversation', user_id=other.id) }}">
+                <label for="chat-body" class="sr-only">Mensagem</label>
+                <input
+                    id="chat-body"
+                    type="text"
+                    name="body"
+                    maxlength="2000"
+                    placeholder="Escreva uma mensagem..."
+                    autocomplete="off"
+                    required
+                >
+                <button type="submit" class="btn-primary">Enviar</button>
+            </form>
+        </section>
+    </main>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mensagens | DevBook</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+</head>
+<body>
+    {% include '_nav.html' %}
+
+    <main>
+        <section class="feed-section container">
+            <h1 class="page-title">Mensagens</h1>
+
+            {% if conversations %}
+                <ul class="conv-list">
+                    {% for conv in conversations %}
+                        <li>
+                            <a class="conv-item card {% if conv.unread %}is-unread{% endif %}" href="{{ url_for('conversation', user_id=conv.user.id) }}">
+                                <img class="conv-avatar" src="{{ conv.user | user_avatar_url }}" width="48" height="48" alt="">
+                                <div class="conv-body">
+                                    <div class="conv-top">
+                                        <span class="conv-name">{{ conv.user.name }}</span>
+                                        <time class="conv-date" datetime="{{ conv.last.created_at.isoformat() }}">
+                                            {{ conv.last.created_at.strftime('%d/%m %H:%M') }}
+                                        </time>
+                                    </div>
+                                    <p class="conv-preview">
+                                        {% if conv.last.sender_id == current_user.id %}<span class="conv-you">Você:</span> {% endif %}
+                                        {{ conv.last.body[:80] }}{% if conv.last.body|length > 80 %}…{% endif %}
+                                    </p>
+                                </div>
+                                {% if conv.unread %}<span class="conv-badge">{{ conv.unread }}</span>{% endif %}
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="feed-empty">Você ainda não tem conversas. Visite o perfil de alguém e clique em “Mensagem”.</p>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>

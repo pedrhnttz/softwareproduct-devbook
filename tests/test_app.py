@@ -2,7 +2,7 @@ import io
 
 from avatars import is_valid_stored_avatar_filename
 from db import db
-from models import Comment, Post, User
+from models import Comment, Message, Post, User
 
 MINI_PNG = (
     b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01'
@@ -555,6 +555,242 @@ def test_cannot_follow_self(app, client):
         iris = db.session.get(User, iris_id)
         assert iris.followers_count == 0
         assert iris.following_count == 0
+
+
+# ---------------------------------------------------------------------------
+# Reações
+# ---------------------------------------------------------------------------
+
+def test_react_sets_and_changes_reaction(app, client):
+    _register(client, 'Reagente', 'react-author@example.com')
+    client.post('/', data={'body': 'Reaja a este post'}, follow_redirects=True)
+
+    with app.app_context():
+        post_id = Post.query.first().id
+
+    other = app.test_client()
+    _register(other, 'ReactBob', 'reactbob@example.com')
+
+    # Primeira reação: love
+    other.post(f'/post/{post_id}/react', data={'type': 'love'}, follow_redirects=False)
+    with app.app_context():
+        post = db.session.get(Post, post_id)
+        assert post.like_count == 1
+        bob = User.query.filter_by(mail='reactbob@example.com').first()
+        assert post.user_reaction_type(bob) == 'love'
+
+    # Trocar para haha (não cria nova, apenas muda o tipo)
+    other.post(f'/post/{post_id}/react', data={'type': 'haha'}, follow_redirects=False)
+    with app.app_context():
+        post = db.session.get(Post, post_id)
+        assert post.like_count == 1
+        bob = User.query.filter_by(mail='reactbob@example.com').first()
+        assert post.user_reaction_type(bob) == 'haha'
+
+
+def test_react_same_type_toggles_off(app, client):
+    _register(client, 'Autor', 'toggle-author@example.com')
+    client.post('/', data={'body': 'Toggle me'}, follow_redirects=True)
+    with app.app_context():
+        post_id = Post.query.first().id
+
+    other = app.test_client()
+    _register(other, 'Toggler', 'toggler@example.com')
+    other.post(f'/post/{post_id}/react', data={'type': 'wow'}, follow_redirects=False)
+    other.post(f'/post/{post_id}/react', data={'type': 'wow'}, follow_redirects=False)
+
+    with app.app_context():
+        assert db.session.get(Post, post_id).like_count == 0
+
+
+def test_react_invalid_type_rejected(app, client):
+    _register(client, 'Carla', 'carla-react@example.com')
+    client.post('/', data={'body': 'Post'}, follow_redirects=True)
+    with app.app_context():
+        post_id = Post.query.first().id
+
+    response = client.post(f'/post/{post_id}/react', data={'type': 'banana'})
+    assert response.status_code == 400
+    with app.app_context():
+        assert db.session.get(Post, post_id).like_count == 0
+
+
+def test_like_route_creates_like_reaction(app, client):
+    _register(client, 'Likebot', 'likebot@example.com')
+    client.post('/', data={'body': 'Curte aí'}, follow_redirects=True)
+    with app.app_context():
+        post_id = Post.query.first().id
+
+    other = app.test_client()
+    _register(other, 'Liker', 'liker2@example.com')
+    other.post(f'/post/{post_id}/like', follow_redirects=False)
+
+    with app.app_context():
+        post = db.session.get(Post, post_id)
+        liker = User.query.filter_by(mail='liker2@example.com').first()
+        assert post.user_reaction_type(liker) == 'like'
+
+
+# ---------------------------------------------------------------------------
+# Notificações
+# ---------------------------------------------------------------------------
+
+def test_reaction_generates_notification(app, client):
+    _register(client, 'Dona', 'notif-owner@example.com')
+    client.post('/', data={'body': 'Meu post'}, follow_redirects=True)
+    with app.app_context():
+        post_id = Post.query.first().id
+
+    other = app.test_client()
+    _register(other, 'Fan', 'fan@example.com')
+    other.post(f'/post/{post_id}/react', data={'type': 'love'}, follow_redirects=False)
+
+    with app.app_context():
+        owner = User.query.filter_by(mail='notif-owner@example.com').first()
+        assert owner.unread_notifications_count == 1
+        notif = owner.notifications.first()
+        assert notif.type == 'reaction'
+        assert notif.actor.name == 'Fan'
+
+
+def test_self_actions_do_not_notify(app, client):
+    _register(client, 'Solo', 'solo@example.com')
+    client.post('/', data={'body': 'Post próprio'}, follow_redirects=True)
+    with app.app_context():
+        post_id = Post.query.first().id
+
+    client.post(f'/post/{post_id}/react', data={'type': 'like'}, follow_redirects=False)
+    client.post(f'/post/{post_id}/comment', data={'body': 'eu mesmo'}, follow_redirects=False)
+
+    with app.app_context():
+        solo = User.query.filter_by(mail='solo@example.com').first()
+        assert solo.unread_notifications_count == 0
+
+
+def test_comment_and_follow_generate_notifications(app, client):
+    _register(client, 'Alvo', 'alvo@example.com')
+    client.post('/', data={'body': 'Comente aqui'}, follow_redirects=True)
+    with app.app_context():
+        owner = User.query.filter_by(mail='alvo@example.com').first()
+        owner_id = owner.id
+        post_id = Post.query.first().id
+
+    other = app.test_client()
+    _register(other, 'Interativo', 'interativo@example.com')
+    other.post(f'/post/{post_id}/comment', data={'body': 'Top!'}, follow_redirects=False)
+    other.post(f'/user/{owner_id}/follow', follow_redirects=False)
+
+    with app.app_context():
+        owner = db.session.get(User, owner_id)
+        types = {n.type for n in owner.notifications.all()}
+        assert 'comment' in types
+        assert 'follow' in types
+
+
+def test_visiting_notifications_marks_as_read(app, client):
+    _register(client, 'Leitor', 'leitor@example.com')
+    client.post('/', data={'body': 'Post'}, follow_redirects=True)
+    with app.app_context():
+        post_id = Post.query.first().id
+
+    other = app.test_client()
+    _register(other, 'Outro', 'outro-notif@example.com')
+    other.post(f'/post/{post_id}/react', data={'type': 'like'}, follow_redirects=False)
+
+    with app.app_context():
+        owner = User.query.filter_by(mail='leitor@example.com').first()
+        assert owner.unread_notifications_count == 1
+
+    response = client.get('/notifications')
+    assert response.status_code == 200
+
+    with app.app_context():
+        owner = User.query.filter_by(mail='leitor@example.com').first()
+        assert owner.unread_notifications_count == 0
+
+
+def test_notifications_requires_login(client):
+    response = client.get('/notifications', follow_redirects=False)
+    assert response.status_code == 302
+    assert '/landing' in response.location
+
+
+# ---------------------------------------------------------------------------
+# Mensagens privadas
+# ---------------------------------------------------------------------------
+
+def test_send_and_read_message(app, client):
+    _register(client, 'Emissor', 'sender@example.com')
+    receiver = app.test_client()
+    _register(receiver, 'Destino', 'receiver@example.com')
+
+    with app.app_context():
+        receiver_id = User.query.filter_by(mail='receiver@example.com').first().id
+
+    client.post(
+        f'/messages/{receiver_id}',
+        data={'body': 'Olá, tudo bem?'},
+        follow_redirects=False,
+    )
+
+    with app.app_context():
+        msg = Message.query.first()
+        assert msg is not None
+        assert msg.body == 'Olá, tudo bem?'
+        assert msg.recipient_id == receiver_id
+        assert msg.is_read is False
+
+    # Destinatário abre a conversa -> mensagem marcada como lida
+    with app.app_context():
+        sender_id = User.query.filter_by(mail='sender@example.com').first().id
+    thread = receiver.get(f'/messages/{sender_id}')
+    assert thread.status_code == 200
+    assert 'Olá, tudo bem?' in thread.data.decode('utf-8')
+
+    with app.app_context():
+        assert Message.query.first().is_read is True
+
+
+def test_empty_message_not_persisted(app, client):
+    _register(client, 'Vazio', 'vazio@example.com')
+    other = app.test_client()
+    _register(other, 'OutroVazio', 'outrovazio@example.com')
+    with app.app_context():
+        other_id = User.query.filter_by(mail='outrovazio@example.com').first().id
+
+    client.post(f'/messages/{other_id}', data={'body': '   '}, follow_redirects=False)
+    with app.app_context():
+        assert Message.query.count() == 0
+
+
+def test_cannot_message_self(app, client):
+    _register(client, 'Eu', 'eu@example.com')
+    with app.app_context():
+        my_id = User.query.filter_by(mail='eu@example.com').first().id
+    response = client.get(f'/messages/{my_id}', follow_redirects=False)
+    assert response.status_code == 400
+
+
+def test_messages_inbox_lists_conversation(app, client):
+    _register(client, 'CaixaA', 'caixaa@example.com')
+    other = app.test_client()
+    _register(other, 'CaixaB', 'caixab@example.com')
+    with app.app_context():
+        b_id = User.query.filter_by(mail='caixab@example.com').first().id
+
+    client.post(f'/messages/{b_id}', data={'body': 'Primeira mensagem'}, follow_redirects=False)
+
+    inbox = client.get('/messages')
+    assert inbox.status_code == 200
+    body = inbox.data.decode('utf-8')
+    assert 'CaixaB' in body
+    assert 'Primeira mensagem' in body
+
+
+def test_messages_requires_login(client):
+    response = client.get('/messages', follow_redirects=False)
+    assert response.status_code == 302
+    assert '/landing' in response.location
 
 
 def test_follow_unknown_user_returns_404(client):

@@ -46,14 +46,36 @@
                 </div>
             {% endif %}
 
+            {% if post.reaction_summary %}
+                <div class="reaction-summary">
+                    {% for item in post.reaction_summary %}<span class="reaction-chip" title="{{ item.label }}: {{ item.count }}">{{ item.emoji }}</span>{% endfor %}
+                    <span class="reaction-total">{{ post.like_count }}</span>
+                </div>
+            {% endif %}
+
             <div class="post-actions">
-                <form class="action-form" method="post" action="{{ url_for('toggle_like', post_id=post.id) }}">
-                    <button type="submit" class="action-btn like-btn {% if post.is_liked_by(current_user) %}is-liked{% endif %}" aria-label="Curtir">
-                        <span class="action-icon">❤️</span>
-                        <span class="action-label">Curtir</span>
-                        <span class="action-count">{{ post.like_count }}</span>
-                    </button>
-                </form>
+                {% set my_reaction = post.user_reaction_type(current_user) %}
+                <div class="reaction-wrap">
+                    <details class="reaction-picker">
+                        <summary class="action-btn react-btn {% if my_reaction %}is-reacted react-{{ my_reaction }}{% endif %}" aria-label="Reagir">
+                            {% if my_reaction %}
+                                <span class="action-icon">{{ my_reaction | reaction_emoji }}</span>
+                                <span class="action-label">{{ my_reaction | reaction_label }}</span>
+                            {% else %}
+                                <span class="action-icon">👍</span>
+                                <span class="action-label">Curtir</span>
+                            {% endif %}
+                        </summary>
+                        <div class="reaction-menu">
+                            {% for key, emoji, label in reaction_types %}
+                                <form class="reaction-form" method="post" action="{{ url_for('react_post', post_id=post.id) }}">
+                                    <input type="hidden" name="type" value="{{ key }}">
+                                    <button type="submit" class="reaction-option {% if my_reaction == key %}is-selected{% endif %}" title="{{ label }}" aria-label="{{ label }}">{{ emoji }}</button>
+                                </form>
+                            {% endfor %}
+                        </div>
+                    </details>
+                </div>
 
                 <span class="action-btn comment-indicator" aria-label="Comentários">
                     <span class="action-icon">💬</span>
