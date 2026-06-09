@@ -1,0 +1,21 @@
+<header>
+    <nav class="container">
+        <a href="{{ url_for('home') }}" class="logo-link">
+            <div class="logo">DevBook</div>
+        </a>
+        <div class="nav-auth">
+            <a href="{{ url_for('messages') }}" class="nav-icon-btn" aria-label="Mensagens" title="Mensagens">
+                <span class="nav-icon">✉️</span>
+                {% if unread_messages %}<span class="nav-badge">{{ unread_messages if unread_messages <= 99 else '99+' }}</span>{% endif %}
+            </a>
+            <a href="{{ url_for('notifications') }}" class="nav-icon-btn" aria-label="Notificações" title="Notificações">
+                <span class="nav-icon">🔔</span>
+                {% if unread_notifications %}<span class="nav-badge">{{ unread_notifications if unread_notifications <= 99 else '99+' }}</span>{% endif %}
+            </a>
+            <a href="{{ url_for('profile') }}" class="btn-profile nav-user">
+                <img class="nav-avatar" src="{{ current_user | user_avatar_url }}" width="32" height="32" alt="">
+                <span>{{ current_user.name }}</span>
+            </a>
+        </div>
+    </nav>
+</header>

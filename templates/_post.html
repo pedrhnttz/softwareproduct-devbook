@@ -1,0 +1,131 @@
+<article class="post card">
+    <div class="post-layout">
+        <img
+            class="post-avatar"
+            src="{{ post.author | user_avatar_url }}"
+            width="48"
+            height="48"
+            alt=""
+        >
+        <div class="post-main">
+            <header class="post-header">
+                <a class="post-author" href="{{ url_for('user_portfolio', user_id=post.author.id) }}">{{ post.author.name }}</a>
+                <div class="post-meta">
+                    <time class="post-date" datetime="{{ post.created_at.isoformat() }}">
+                        {{ post.created_at.strftime('%d/%m/%Y %H:%M') }}
+                    </time>
+                    {% if post.author_id == current_user.id %}
+                        <a class="post-edit-link" href="{{ url_for('edit_post', post_id=post.id) }}">Editar</a>
+                    {% endif %}
+                </div>
+            </header>
+
+            {% if post.body %}
+                <p class="post-body">{{ post.body }}</p>
+            {% endif %}
+
+            {% if post.parent %}
+                <div class="repost-block">
+                    <p class="repost-label">
+                        🔁 Partilhou uma publicação de
+                        <a class="repost-author" href="{{ url_for('user_portfolio', user_id=post.parent.author.id) }}">{{ post.parent.author.name }}</a>
+                    </p>
+                    <div class="repost-content">
+                        <img
+                            class="repost-avatar"
+                            src="{{ post.parent.author | user_avatar_url }}"
+                            width="32"
+                            height="32"
+                            alt=""
+                        >
+                        <div class="repost-text">
+                            <span class="repost-original-author">{{ post.parent.author.name }}</span>
+                            <p class="repost-body">{{ post.parent.body }}</p>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if post.reaction_summary %}
+                <div class="reaction-summary">
+                    {% for item in post.reaction_summary %}<span class="reaction-chip" title="{{ item.label }}: {{ item.count }}">{{ item.emoji }}</span>{% endfor %}
+                    <span class="reaction-total">{{ post.like_count }}</span>
+                </div>
+            {% endif %}
+
+            <div class="post-actions">
+                {% set my_reaction = post.user_reaction_type(current_user) %}
+                <div class="reaction-wrap">
+                    <details class="reaction-picker">
+                        <summary class="action-btn react-btn {% if my_reaction %}is-reacted react-{{ my_reaction }}{% endif %}" aria-label="Reagir">
+                            {% if my_reaction %}
+                                <span class="action-icon">{{ my_reaction | reaction_emoji }}</span>
+                                <span class="action-label">{{ my_reaction | reaction_label }}</span>
+                            {% else %}
+                                <span class="action-icon">👍</span>
+                                <span class="action-label">Curtir</span>
+                            {% endif %}
+                        </summary>
+                        <div class="reaction-menu">
+                            {% for key, emoji, label in reaction_types %}
+                                <form class="reaction-form" method="post" action="{{ url_for('react_post', post_id=post.id) }}">
+                                    <input type="hidden" name="type" value="{{ key }}">
+                                    <button type="submit" class="reaction-option {% if my_reaction == key %}is-selected{% endif %}" title="{{ label }}" aria-label="{{ label }}">{{ emoji }}</button>
+                                </form>
+                            {% endfor %}
+                        </div>
+                    </details>
+                </div>
+
+                <span class="action-btn comment-indicator" aria-label="Comentários">
+                    <span class="action-icon">💬</span>
+                    <span class="action-label">Comentários</span>
+                    <span class="action-count">{{ post.comment_count }}</span>
+                </span>
+
+                <details class="share-details">
+                    <summary class="action-btn share-btn">
+                        <span class="action-icon">🔁</span>
+                        <span class="action-label">Partilhar</span>
+                    </summary>
+                    <form class="share-form" method="post" action="{{ url_for('share_post', post_id=post.id) }}">
+                        <label for="share-body-{{ post.id }}" class="sr-only">Comentário (opcional)</label>
+                        <textarea
+                            id="share-body-{{ post.id }}"
+                            name="body"
+                            rows="2"
+                            maxlength="2000"
+                            placeholder="Adicione um comentário (opcional)..."
+                        ></textarea>
+                        <button type="submit" class="btn-primary share-submit">Partilhar agora</button>
+                    </form>
+                </details>
+            </div>
+
+            <section class="post-comments">
+                {% if post.comments %}
+                    <ul class="comment-list">
+                        {% for comment in post.comments %}
+                            <li class="comment-item">
+                                <a class="comment-author" href="{{ url_for('user_portfolio', user_id=comment.author.id) }}">{{ comment.author.name }}</a>
+                                <span class="comment-body">{{ comment.body }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                <form class="comment-form" method="post" action="{{ url_for('add_comment', post_id=post.id) }}">
+                    <label for="comment-body-{{ post.id }}" class="sr-only">Novo comentário</label>
+                    <input
+                        id="comment-body-{{ post.id }}"
+                        type="text"
+                        name="body"
+                        maxlength="500"
+                        placeholder="Novo comentário..."
+                        required
+                    >
+                    <button type="submit" class="btn-primary comment-submit">Comentar</button>
+                </form>
+            </section>
+        </div>
+    </div>
+</article>

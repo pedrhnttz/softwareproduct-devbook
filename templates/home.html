@@ -7,19 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
 </head>
 <body>
-    <header>
-        <nav class="container">
-            <a href="{{ url_for('home') }}" class="logo-link">
-                <div class="logo">DevBook</div>
-            </a>
-            <div class="nav-auth">
-                <a href="{{ url_for('profile') }}" class="btn-profile nav-user">
-                    <img class="nav-avatar" src="{{ current_user | user_avatar_url }}" width="32" height="32" alt="">
-                    <span>{{ current_user.name }}</span>
-                </a>
-            </div>
-        </nav>
-    </header>
+    {% include '_nav.html' %}
 
     <main>
         <section class="hero hero-compact">
@@ -48,38 +36,60 @@
                 </form>
             </article>
 
+            <form class="search-bar" method="get" action="{{ url_for('home') }}">
+                <label for="search" class="sr-only">Buscar publicações</label>
+                <input
+                    id="search"
+                    type="text"
+                    name="q"
+                    value="{{ search_query or '' }}"
+                    placeholder="Buscar por conteúdo ou autor..."
+                    maxlength="100"
+                >
+                {% if feed_mode == 'following' %}
+                    <input type="hidden" name="feed" value="following">
+                {% endif %}
+                <button type="submit" class="btn-primary search-submit">Buscar</button>
+                {% if search_query %}
+                    <a href="{{ url_for('home', feed=feed_mode if feed_mode == 'following' else None) }}" class="search-clear">Limpar</a>
+                {% endif %}
+            </form>
+
+            <nav class="feed-tabs" aria-label="Modo do feed">
+                <a
+                    href="{{ url_for('home') }}"
+                    class="feed-tab {% if feed_mode != 'following' %}is-active{% endif %}"
+                    {% if feed_mode != 'following' %}aria-current="page"{% endif %}
+                >Feed Global</a>
+                <a
+                    href="{{ url_for('home', feed='following') }}"
+                    class="feed-tab {% if feed_mode == 'following' %}is-active{% endif %}"
+                    {% if feed_mode == 'following' %}aria-current="page"{% endif %}
+                >Seguindo</a>
+            </nav>
+
             <div class="feed-list">
-                <h2 class="feed-title">Feed da comunidade</h2>
+                <h2 class="feed-title">
+                    {% if search_query %}
+                        Resultados para "{{ search_query }}"
+                    {% elif feed_mode == 'following' %}
+                        Publicações de quem você segue
+                    {% else %}
+                        Feed da comunidade
+                    {% endif %}
+                </h2>
                 {% if posts %}
                     {% for post in posts %}
-                        <article class="post card">
-                            <div class="post-layout">
-                                <img
-                                    class="post-avatar"
-                                    src="{{ post.author | user_avatar_url }}"
-                                    width="48"
-                                    height="48"
-                                    alt=""
-                                >
-                                <div class="post-main">
-                                    <header class="post-header">
-                                        <span class="post-author">{{ post.author.name }}</span>
-                                        <div class="post-meta">
-                                            <time class="post-date" datetime="{{ post.created_at.isoformat() }}">
-                                                {{ post.created_at.strftime('%d/%m/%Y %H:%M') }}
-                                            </time>
-                                            {% if post.author_id == current_user.id %}
-                                                <a class="post-edit-link" href="{{ url_for('edit_post', post_id=post.id) }}">Editar</a>
-                                            {% endif %}
-                                        </div>
-                                    </header>
-                                    <p class="post-body">{{ post.body }}</p>
-                                </div>
-                            </div>
-                        </article>
+                        {% include '_post.html' %}
                     {% endfor %}
                 {% else %}
-                    <p class="feed-empty">Ainda não há publicações. Seja o primeiro a postar.</p>
+                    {% if search_query %}
+                        <p class="feed-empty">Nenhuma publicação encontrada para "{{ search_query }}".</p>
+                    {% elif feed_mode == 'following' %}
+                        <p class="feed-empty">Você ainda não segue ninguém — explore o <a href="{{ url_for('home') }}">Feed Global</a> para encontrar pessoas.</p>
+                    {% else %}
+                        <p class="feed-empty">Ainda não há publicações. Seja o primeiro a postar.</p>
+                    {% endif %}
                 {% endif %}
             </div>
         </section>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ portfolio_user.name }} | DevBook</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+</head>
+<body>
+    {% include '_nav.html' %}
+
+    <main>
+        <section class="portfolio-hero container">
+            <div class="portfolio-card card">
+                <img
+                    class="portfolio-avatar"
+                    src="{{ portfolio_user | user_avatar_url }}"
+                    width="120"
+                    height="120"
+                    alt=""
+                >
+                <div class="portfolio-info">
+                    <div class="portfolio-name-row">
+                        <h1 class="portfolio-name">{{ portfolio_user.name }}</h1>
+                        {% if portfolio_user.id != current_user.id %}
+                            <form class="follow-form" method="post" action="{{ url_for('toggle_follow', user_id=portfolio_user.id) }}">
+                                {% if current_user.is_following(portfolio_user) %}
+                                    <button type="submit" class="btn-secondary follow-btn is-following">Deixar de seguir</button>
+                                {% else %}
+                                    <button type="submit" class="btn-primary follow-btn">Seguir</button>
+                                {% endif %}
+                            </form>
+                            <a class="btn-secondary follow-btn" href="{{ url_for('conversation', user_id=portfolio_user.id) }}">✉️ Mensagem</a>
+                        {% endif %}
+                    </div>
+                    <p class="portfolio-stats">
+                        {{ posts | length }} publicaç{{ 'ão' if posts | length == 1 else 'ões' }}
+                        · <strong>{{ portfolio_user.followers_count }}</strong> seguidor{{ '' if portfolio_user.followers_count == 1 else 'es' }}
+                        · <strong>{{ portfolio_user.following_count }}</strong> seguindo
+                    </p>
+                    <a href="{{ url_for('home') }}" class="btn-secondary portfolio-back">← Voltar ao feed</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="feed-section container">
+            <div class="feed-list">
+                <h2 class="feed-title">Publicações de {{ portfolio_user.name }}</h2>
+                {% if posts %}
+                    {% for post in posts %}
+                        {% include '_post.html' %}
+                    {% endfor %}
+                {% else %}
+                    <p class="feed-empty">{{ portfolio_user.name }} ainda não publicou nada.</p>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+</body>
+</html>

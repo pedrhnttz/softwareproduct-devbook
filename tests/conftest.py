@@ -13,7 +13,10 @@ def app():
     os.makedirs(upload, exist_ok=True)
     with application.app_context():
         db.create_all()
-        yield application
+
+    yield application
+
+    with application.app_context():
         db.session.remove()
         db.drop_all()
     if os.path.isdir(upload):

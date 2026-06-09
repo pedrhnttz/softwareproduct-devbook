@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notificações | DevBook</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+</head>
+<body>
+    {% include '_nav.html' %}
+
+    <main>
+        <section class="feed-section container">
+            <h1 class="page-title">Notificações</h1>
+
+            {% if notifications %}
+                <ul class="notif-list">
+                    {% for notif in notifications %}
+                        <li class="notif-item card {% if not notif.is_read %}is-unread{% endif %}">
+                            <a class="notif-avatar-link" href="{{ url_for('user_portfolio', user_id=notif.actor.id) }}">
+                                <img class="notif-avatar" src="{{ notif.actor | user_avatar_url }}" width="44" height="44" alt="">
+                            </a>
+                            <div class="notif-body">
+                                <p class="notif-text">
+                                    <a class="notif-actor" href="{{ url_for('user_portfolio', user_id=notif.actor.id) }}">{{ notif.actor.name }}</a>
+                                    {% if notif.type == 'reaction' %}
+                                        reagiu à sua publicação.
+                                    {% elif notif.type == 'comment' %}
+                                        comentou na sua publicação.
+                                    {% elif notif.type == 'share' %}
+                                        partilhou a sua publicação.
+                                    {% elif notif.type == 'follow' %}
+                                        começou a seguir você.
+                                    {% else %}
+                                        interagiu com você.
+                                    {% endif %}
+                                </p>
+                                {% if notif.post and notif.post.body %}
+                                    <p class="notif-preview">“{{ notif.post.body[:120] }}{% if notif.post.body|length > 120 %}…{% endif %}”</p>
+                                {% endif %}
+                                <time class="notif-date" datetime="{{ notif.created_at.isoformat() }}">
+                                    {{ notif.created_at.strftime('%d/%m/%Y %H:%M') }}
+                                </time>
+                            </div>
+                            <span class="notif-icon">
+                                {% if notif.type == 'reaction' %}👍{% elif notif.type == 'comment' %}💬{% elif notif.type == 'share' %}🔁{% elif notif.type == 'follow' %}➕{% else %}🔔{% endif %}
+                            </span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="feed-empty">Você ainda não tem notificações.</p>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>
